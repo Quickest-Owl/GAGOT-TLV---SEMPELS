@@ -1,0 +1,35 @@
+# directories
+obj
+Bin
+x64
+x86
+GeneratedFiles
+.vs
+.git
+.svn
+.Tmp
+.metadata
+.settings
+
+# files
+*.suo
+*.user
+*.sdf
+*.vcxproj.filters
+*.VC.opendb
+*.VC.db
+*.o
+*.d
+
+# from Kurento java project
+#*~
+##target
+#.classpath
+##.project
+##*orig
+#.springBeans
+##*/repository/
+#*tmp/
+##*backup
+##*Backup
+#*bower_components/
