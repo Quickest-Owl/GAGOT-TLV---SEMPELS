@@ -3,7 +3,7 @@
  Filename    :  reader-zed.h
  Purpose     :  ZED Player class
  Created	 :  20.2.2018
- Author      :  Sergey Krasnitsky
+ Author      :  Sergey Krasnitsky, (c) Quickest-Owl Ltd
 \**********************************************************************/
 
 #ifndef _PLAYFILE_ZED_H
@@ -17,28 +17,22 @@
 class PlayerZed : public PlayerB
 {
   public:
-	PlayerZed () : PrevImage (nullptr)
-	{
-	}
+	PlayerZed ()
+	{}
 
 	virtual ~PlayerZed ()
-	{
-		if (PrevImage)
-			delete PrevImage;
-	}
+	{}
 
   private:
-	virtual void	Construct (const char* file = nullptr);
-	virtual int		GetNextFrame ();
-	virtual int		GetDepthCoordinate (int x, int y);
+	virtual void		Construct (int64 jump = -1, cchar* file = nullptr);
+	virtual int64		GetNextFrame ();
+	virtual unsigned	GetDepthCoordinate (int x, int y);
 
   private:
 	sl::Camera		Zed;
 	sl::Mat			SvoImage;
 	sl::Mat			SvoDepth;
-	cv::Mat			Depth;
 	bool			FromFile;
-	char*			PrevImage;
 };
 
 

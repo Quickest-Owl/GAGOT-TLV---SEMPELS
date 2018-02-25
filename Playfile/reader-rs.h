@@ -3,7 +3,7 @@
  Filename    :  reader-rs.h
  Purpose     :  Realsense Player class
  Created	 :  20.2.2018
- Author      :  Sergey Krasnitsky
+ Author      :  Sergey Krasnitsky, (c) Quickest-Owl Ltd
 \**********************************************************************/
 
 #ifndef _PLAYFILE_RS_H
@@ -20,29 +20,38 @@
 class PlayerRealsense : public PlayerB
 {
   public:
-	PlayerRealsense() : PrevImage(nullptr)
-	{
-	}
+	PlayerRealsense() : ImageDataBuf(nullptr), DepthDataBuf(nullptr)
+	{}
 
 	virtual ~PlayerRealsense ()
 	{
-		if (PrevImage)
-			delete PrevImage;
+		if (ImageDataBuf)
+			delete ImageDataBuf;
+		if (DepthDataBuf)
+			delete DepthDataBuf;
 	}
 
   private:
-	virtual void	Construct (const char* file = nullptr);
-	virtual int		GetNextFrame ();
-	virtual int		GetDepthCoordinate (int x, int y);
+	virtual void		Construct (int64 jump = -1, cchar* file = nullptr);
+	virtual int64		GetNextFrame ();
+	virtual unsigned	GetDepthCoordinate (int x, int y);
+
+  private:
+	static cchar* FormatNames[RS2_FORMAT_COUNT];
 
   private:
 	rs2::pipeline	Pipe;
-	rs2::frameset	Cur;
-	rs2::frame		CurDepth;
-	rs2::frame		CurImage;
 	bool			FromFile;
-	char*			PrevImage;
+	int64			Iframe0;
+	char*			ImageDataBuf;
+	uint16*			DepthDataBuf;
 };
+
+
+inline unsigned PlayerRealsense::GetDepthCoordinate (int x, int y)
+{
+	return DepthDataBuf [FrameSize.width * y + x];
+}
 
 
 #endif // _PLAYFILE_RS_H

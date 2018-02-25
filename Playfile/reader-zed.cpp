@@ -3,7 +3,7 @@
  Filename    :  reader-zed.cpp
  Purpose     :  ZED Player class
  Created	 :  20.2.2018
- Author      :  Sergey Krasnitsky
+ Author      :  Sergey Krasnitsky, (c) Quickest-Owl Ltd
 \**********************************************************************/
 
 #include "def.h"
@@ -12,9 +12,8 @@
 using namespace sl;
 
 
-void PlayerZed::Construct (const char* file)
+void PlayerZed::Construct (int64 jump, cchar* file)
 {
-	PrevImage = nullptr;
 	PlayerName = "Quickest Owl : ZED : ";
 	if (file)
 		PlayerName += file;
@@ -35,48 +34,50 @@ void PlayerZed::Construct (const char* file)
 	if (err)
 		throw std::exception(toString(err));
 
-	FrameSize = cv::Size (int(Zed.getResolution().width), int(Zed.getResolution().height));
+	printf ("Device: %s\n\n"
+	        "FW ver: 0x%X:\n"
+			"SDK ver: %s\n"
+			"Self Calibration State: %d\n\n",
+			(cchar*)PlayerName, Zed.getCameraInformation().firmware_version, Zed.getSDKVersion().c_str(), Zed.getSelfCalibrationState());
+
+	Nframes = Zed.getSVONumberOfFrames();
+	assert (Nframes != 0); // can be -1 or >0
+	if (Nframes > 0)
+		Nframes--;  // we will start from 0, 
+
+	FrameSize = { int(Zed.getResolution().width), int(Zed.getResolution().height) };
 
 	new (&SvoImage) sl::Mat (FrameSize.width, FrameSize.height, MAT_TYPE_8U_C4, MEM_CPU);
-	new (&SvoDepth) sl::Mat (FrameSize.width, FrameSize.height, MAT_TYPE_8U_C4, MEM_CPU);
 
-	Frame = cv::Mat (int(SvoImage.getHeight()), int(SvoImage.getWidth()), CV_8UC4, SvoImage.getPtr<sl::uchar1>(MEM_CPU)); 
-	Depth = cv::Mat (int(SvoImage.getHeight()), int(SvoImage.getWidth()), CV_8UC4, SvoDepth.getPtr<sl::uchar1>(MEM_CPU)); 
+	Frame = cv::Mat (FrameSize.height, FrameSize.width, CV_8UC4, SvoImage.getPtr<sl::uchar1>(MEM_CPU));
 
-	PlayerB::Construct (file);
+	printf ("\nCommon parameters:\n"
+	        "  Video size: %d * %d\n"
+			"  FPS: %d\n\n", FrameSize.width, FrameSize.height, int(Zed.getCameraFPS()));
+
+
+	PlayerB::Construct (jump, file);
 }
 
 
-int PlayerZed::GetNextFrame ()
+int64 PlayerZed::GetNextFrame ()
 {
-	bool newdata;
+	if (Nframes >= 0 && Iframe == Nframes)
+		return Iframe;	// for some strange reason Zed.grab() on some SVO files returns SUCCESS after the end, this mechanism guards it
 
-	if (newdata = (Zed.grab () == SUCCESS)) {
-		Zed.retrieveImage (SvoImage, VIEW_LEFT,  MEM_CPU, FrameSize.width, FrameSize.height);
-		Zed.retrieveImage (SvoDepth, VIEW_DEPTH, MEM_CPU, FrameSize.width, FrameSize.height);
-		++Iframe;
+	if (Zed.grab() == SUCCESS) {
+		Zed.retrieveImage (SvoImage, VIEW_LEFT);
+		//Zed.retrieveImage (SvoDepth, VIEW_DEPTH);
+		Zed.retrieveMeasure(SvoDepth, MEASURE_DEPTH);
+		Iframe++;
 	}
-	else if (!Iframe)
-		return 0;
-
-	int size_bytes = FrameSize.width * FrameSize.height * 4; // We are RGBA == CV_8UC4
-
-	if (newdata) {
-		if (!PrevImage)
-			PrevImage = new char[size_bytes];
-		memcpy (PrevImage, SvoImage.getPtr<sl::uchar1>(MEM_CPU), size_bytes);
-	}
-	else {
-		assert (PrevImage);
-		new(&Frame) cv::Mat (FrameSize, CV_8UC3, (void*)PrevImage);
-	}
-
 	return Iframe;
 }
 
 
-int PlayerZed::GetDepthCoordinate (int x, int y)
+unsigned PlayerZed::GetDepthCoordinate (int x, int y)
 {
-	uint32* pd = (uint32*)Depth.data;
-	return (uint8) pd[FrameSize.width * y + x];	// the ZED depth is 3 x same byte values + 0xFF
+	float depth_value = 0;
+	SvoDepth.getValue (x, y, &depth_value);
+	return unsigned (depth_value);
 }
